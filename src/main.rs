@@ -10,6 +10,7 @@ use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::path::Path;
+use std::process::Command;
 
 use serde_json::de::from_reader;
 use serde_json::ser::to_writer_pretty;
@@ -88,10 +89,18 @@ fn make_snippet(path: &Path) -> Result<Snippet> {
         prefix: file_stem_from_path(&path)?,
         body: vec![],
     };
-    let file = File::open(&path)?;
-    let reader = BufReader::new(&file);
+    println!("make_snippet: {}", path_name_from_path(&path)?);
+    let bundle = Command::new("sh")
+                            .arg("-c")
+                            .arg(format!("oj-verify bundle {}", path_name_from_path(&path)?))
+                            .output()
+                            .expect("failed to run oj-verify bundle");
+    let reader = BufReader::new(bundle.stdout.as_slice());
     for line in reader.lines() {
         let line = line?;
+        if line.find("#line ") != None {
+            continue;
+        }
         snippet.body.push(line);
     }
     Ok(snippet)
